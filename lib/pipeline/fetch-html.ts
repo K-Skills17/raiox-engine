@@ -17,6 +17,7 @@ const WHATSAPP_PATTERNS = [
 const CRO_PATTERN = /CRO[\s-]?[A-Z]{2}\s*\d{4,7}/g;
 
 export interface HTMLParseResult {
+  title: string;
   text: string;
   excerpt: string;
   whatsappClicks: number;
@@ -45,6 +46,9 @@ export async function fetchAndParseHTML(url: string): Promise<HTMLParseResult> {
   const html = await res.text();
   const $ = cheerio.load(html);
 
+  // Extract title before removing elements
+  const title = $("title").text().trim() || $("h1").first().text().trim() || "";
+
   // Remove script and style tags before extracting text
   $("script, style, noscript").remove();
   const text = $("body").text().replace(/\s+/g, " ").trim();
@@ -71,6 +75,7 @@ export async function fetchAndParseHTML(url: string): Promise<HTMLParseResult> {
   const croVisible = croMatches.length > 0;
 
   return {
+    title,
     text,
     excerpt: text.slice(0, 8000),
     whatsappClicks,

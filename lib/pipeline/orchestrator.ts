@@ -39,9 +39,8 @@ export async function runFullAudit(
     // 3. Run copy analysis
     const copyFindings = analyzeCopy(htmlData.text);
 
-    // 4. Extract clinic name for GBP search
-    const titleMatch = htmlData.text.match(/^(.{5,60})/);
-    const clinicName = titleMatch ? titleMatch[1].trim() : new URL(url).hostname;
+    // 4. Extract clinic name for GBP search (from <title> or hostname)
+    const clinicName = htmlData.title || new URL(url).hostname;
 
     // 5. Build automated findings
     const automatedFindings = {

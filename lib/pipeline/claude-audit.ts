@@ -40,7 +40,7 @@ export async function runClaudeAudit(
   const userMsg = buildUserMessage(input);
 
   const msg = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
+    model: "claude-sonnet-4-6",
     max_tokens: 4000,
     system: RAIOX_SYSTEM_PROMPT,
     messages: [{ role: "user", content: userMsg }],
