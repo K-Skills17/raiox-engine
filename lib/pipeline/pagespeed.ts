@@ -13,12 +13,34 @@ export interface PageSpeedData {
   raw: { mobile: any; desktop: any };
 }
 
+const EMPTY_RESULT: PageSpeedResult & { raw: any } = {
+  score: 0,
+  lcpSeconds: 0,
+  audits: {},
+  raw: null,
+};
+
 export async function runPageSpeed(url: string): Promise<PageSpeedData> {
-  const [mobile, desktop] = await Promise.all([
+  const [mobile, desktop] = await Promise.allSettled([
     fetchSpeed(url, "mobile"),
     fetchSpeed(url, "desktop"),
   ]);
-  return { mobile, desktop, raw: { mobile: mobile.raw, desktop: desktop.raw } };
+
+  const mobileResult = mobile.status === "fulfilled" ? mobile.value : EMPTY_RESULT;
+  const desktopResult = desktop.status === "fulfilled" ? desktop.value : EMPTY_RESULT;
+
+  if (mobile.status === "rejected") {
+    console.warn("PageSpeed mobile failed:", mobile.reason?.message);
+  }
+  if (desktop.status === "rejected") {
+    console.warn("PageSpeed desktop failed:", desktop.reason?.message);
+  }
+
+  return {
+    mobile: mobileResult,
+    desktop: desktopResult,
+    raw: { mobile: mobileResult.raw, desktop: desktopResult.raw },
+  };
 }
 
 async function fetchSpeed(
