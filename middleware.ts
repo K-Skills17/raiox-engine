@@ -1,57 +1,26 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createServerClient } from "@supabase/ssr";
 
-export async function middleware(req: NextRequest) {
-  let response = NextResponse.next({
-    request: {
-      headers: req.headers,
-    },
-  });
+export function middleware(req: NextRequest) {
+  const authCookie = req.cookies.get("raiox-authenticated");
+  const isAuthenticated = authCookie?.value === process.env.AUTH_PASSWORD;
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return req.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            req.cookies.set(name, value)
-          );
-          response = NextResponse.next({
-            request: {
-              headers: req.headers,
-            },
-          });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          );
-        },
-      },
+  // Allow login page and auth API
+  if (
+    req.nextUrl.pathname.startsWith("/login") ||
+    req.nextUrl.pathname.startsWith("/api/auth")
+  ) {
+    if (isAuthenticated && req.nextUrl.pathname.startsWith("/login")) {
+      return NextResponse.redirect(new URL("/", req.url));
     }
-  );
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  // Redirect to login if not authenticated
-  if (!user && !req.nextUrl.pathname.startsWith("/login") && !req.nextUrl.pathname.startsWith("/auth")) {
-    const url = req.nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
+    return NextResponse.next();
   }
 
-  // Redirect to home if already logged in and on login page
-  if (user && req.nextUrl.pathname.startsWith("/login")) {
-    const url = req.nextUrl.clone();
-    url.pathname = "/";
-    return NextResponse.redirect(url);
+  // Block everything else if not authenticated
+  if (!isAuthenticated) {
+    return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  return response;
+  return NextResponse.next();
 }
 
 export const config = {

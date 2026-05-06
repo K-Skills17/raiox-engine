@@ -1,22 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient, createServiceClient } from "@/lib/supabase/server";
+import { isAuthenticated } from "@/lib/auth";
+import { createServiceClient } from "@/lib/supabase/server";
 import { runClaudeAudit } from "@/lib/pipeline/claude-audit";
 
 export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const supabase = await createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  if (!(await isAuthenticated())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Fetch current audit data
-  const { data: audit } = await supabase
+  const serviceClient = await createServiceClient();
+  const { data: audit } = await serviceClient
     .from("audits")
     .select()
     .eq("id", params.id)
@@ -51,7 +47,6 @@ export async function POST(
       htmlExcerpt: audit.raw_html_excerpt || "",
     });
 
-    const serviceClient = await createServiceClient();
     await serviceClient
       .from("audits")
       .update({

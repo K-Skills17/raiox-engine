@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase/server";
+import { isAuthenticated, OWNER_USER_ID } from "@/lib/auth";
 import { runFullAudit } from "@/lib/pipeline/orchestrator";
 
 export async function POST(req: NextRequest) {
-  const supabase = await createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  if (!(await isAuthenticated())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -24,7 +19,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const auditId = await runFullAudit(url, user.id, { city, tier });
+    const auditId = await runFullAudit(url, OWNER_USER_ID, { city, tier });
     return NextResponse.json({ auditId });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });

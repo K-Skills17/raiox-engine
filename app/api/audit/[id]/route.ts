@@ -1,20 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient, createServiceClient } from "@/lib/supabase/server";
+import { isAuthenticated } from "@/lib/auth";
+import { createServiceClient } from "@/lib/supabase/server";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const supabase = await createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  if (!(await isAuthenticated())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { data: audit } = await supabase
+  const serviceClient = await createServiceClient();
+  const { data: audit } = await serviceClient
     .from("audits")
     .select()
     .eq("id", params.id)
@@ -31,18 +28,12 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const supabase = await createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  if (!(await isAuthenticated())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const body = await req.json();
 
-  // Only allow manual field updates
   const allowedFields = [
     "gbp_photos",
     "gbp_last_reply_date",
@@ -64,7 +55,6 @@ export async function PATCH(
     .from("audits")
     .update(updates)
     .eq("id", params.id)
-    .eq("created_by", user.id)
     .select()
     .single();
 

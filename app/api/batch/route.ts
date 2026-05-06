@@ -1,14 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient, createServiceClient } from "@/lib/supabase/server";
+import { isAuthenticated, OWNER_USER_ID } from "@/lib/auth";
+import { createServiceClient } from "@/lib/supabase/server";
 import { runFullAudit } from "@/lib/pipeline/orchestrator";
 
 export async function POST(req: NextRequest) {
-  const supabase = await createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  if (!(await isAuthenticated())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -26,14 +22,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Create batch record
   const serviceClient = await createServiceClient();
   const { data: batch, error: batchError } = await serviceClient
     .from("batch_runs")
     .insert({
       url_count: urls.length,
       status: "running",
-      created_by: user.id,
+      created_by: OWNER_USER_ID,
     })
     .select()
     .single();
@@ -45,8 +40,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Process audits in background (don't await all)
-  processAudits(batch.id, urls, user.id, city, tier);
+  processAudits(batch.id, urls, city, tier);
 
   return NextResponse.json({ batchId: batch.id });
 }
@@ -54,7 +48,6 @@ export async function POST(req: NextRequest) {
 async function processAudits(
   batchId: string,
   urls: string[],
-  userId: string,
   city?: string,
   tier?: number
 ) {
@@ -63,12 +56,11 @@ async function processAudits(
   let completedCount = 0;
   let failedCount = 0;
 
-  // Process 5 at a time for parallelism
   const CONCURRENCY = 5;
   for (let i = 0; i < urls.length; i += CONCURRENCY) {
     const chunk = urls.slice(i, i + CONCURRENCY);
     const results = await Promise.allSettled(
-      chunk.map((url) => runFullAudit(url, userId, { city, tier }))
+      chunk.map((url) => runFullAudit(url, OWNER_USER_ID, { city, tier }))
     );
 
     for (const result of results) {
@@ -82,7 +74,6 @@ async function processAudits(
       }
     }
 
-    // Update batch progress
     await serviceClient
       .from("batch_runs")
       .update({
@@ -93,7 +84,6 @@ async function processAudits(
       .eq("id", batchId);
   }
 
-  // Final status
   const finalStatus =
     failedCount === urls.length
       ? "failed"
@@ -113,12 +103,7 @@ async function processAudits(
 }
 
 export async function GET(req: NextRequest) {
-  const supabase = await createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  if (!(await isAuthenticated())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

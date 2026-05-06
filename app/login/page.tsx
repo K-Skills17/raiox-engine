@@ -1,34 +1,32 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [sent, setSent] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError("");
 
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
     });
 
-    if (error) {
-      setError(error.message);
+    if (res.ok) {
+      router.push("/");
     } else {
-      setSent(true);
+      setError("Senha incorreta");
     }
     setLoading(false);
   }
@@ -41,40 +39,29 @@ export default function LoginPage() {
           <p className="text-muted-foreground">LK Digital</p>
         </div>
 
-        {sent ? (
-          <div className="text-center space-y-4">
-            <p className="text-green-400">Link enviado para {email}</p>
-            <p className="text-muted-foreground text-sm">
-              Verifique seu email e clique no link para entrar.
-            </p>
+        <form onSubmit={handleLogin} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="password">Senha</Label>
+            <Input
+              id="password"
+              type="password"
+              placeholder="Digite a senha"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
           </div>
-        ) : (
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="seu@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
 
-            {error && (
-              <p className="text-red-400 text-sm">{error}</p>
-            )}
+          {error && <p className="text-red-400 text-sm">{error}</p>}
 
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gold text-black hover:bg-gold-light"
-            >
-              {loading ? "Enviando..." : "Entrar com Magic Link"}
-            </Button>
-          </form>
-        )}
+          <Button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-gold text-black hover:bg-gold-light"
+          >
+            {loading ? "Entrando..." : "Entrar"}
+          </Button>
+        </form>
       </div>
     </main>
   );
