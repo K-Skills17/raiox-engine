@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import AuditResults from "@/components/AuditResults";
 import ManualFieldsForm from "@/components/ManualFieldsForm";
 import FilmableScriptCard from "@/components/FilmableScriptCard";
+import BrollChecklistCard from "@/components/BrollChecklistCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -129,8 +130,8 @@ export default function AuditPage() {
             />
           </div>
 
-          {/* Right: Filmable script */}
-          <div>
+          {/* Right: Filmable script + B-Roll */}
+          <div className="space-y-6">
             <FilmableScriptCard
               script={audit.filmable_script || ""}
               reelTemplate={audit.best_reel_template || "REEL-01"}
@@ -143,6 +144,7 @@ export default function AuditPage() {
                 });
               }}
             />
+            <BrollChecklistCard audit={audit} />
           </div>
         </div>
 
